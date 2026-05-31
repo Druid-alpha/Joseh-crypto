@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import './App.css'
+import { askAiAssistant } from './lib/ai'
+import { submitContactInquiry, subscribeToNewsletter } from './lib/supabase'
 
 type Page =
   | 'home'
@@ -11,6 +13,8 @@ type Page =
   | 'pitch-deck'
   | 'contact'
   | 'get-started'
+  | 'privacy'
+  | 'terms'
 
 const navItems: { label: string; page: Page }[] = [
   { label: 'Services', page: 'services' },
@@ -20,6 +24,31 @@ const navItems: { label: string; page: Page }[] = [
   { label: 'Pitch Deck', page: 'pitch-deck' },
   { label: 'Contact', page: 'contact' },
 ]
+
+const pagePaths: Record<Page, string> = {
+  home: '/',
+  services: '/services',
+  about: '/about',
+  partners: '/partners',
+  team: '/team',
+  'pitch-deck': '/pitch-deck',
+  contact: '/contact',
+  'get-started': '/get-started',
+  privacy: '/privacy',
+  terms: '/terms',
+}
+
+const pathPages = Object.fromEntries(
+  Object.entries(pagePaths).map(([page, path]) => [path, page]),
+) as Record<string, Page>
+
+const socialLinks = {
+  twitter: 'https://twitter.com/josehweb3',
+  linkedin: 'https://linkedin.com/company/josehweb3',
+  telegram: 'https://t.me/josehweb3',
+  whatsapp: 'https://wa.me/2340000000000',
+  facebook: 'https://facebook.com/josehweb3',
+}
 
 const stats = [
   '100+ Successful Listings',
@@ -329,44 +358,112 @@ function SocialIcon({ name }: { name: string }) {
 
 function App() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [activePage, setActivePage] = useState<Page>('home')
+  const [activePage, setActivePage] = useState<Page>(() => pathPages[window.location.pathname] || 'home')
   const [assistantOpen, setAssistantOpen] = useState(false)
   const [newsletterMessage, setNewsletterMessage] = useState('')
+  const [newsletterState, setNewsletterState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [contactMessage, setContactMessage] = useState('')
+  const [contactState, setContactState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [chatMessages, setChatMessages] = useState([
     'Hi, I am Joseh AI powered by ChainGPT. Ask me about listings, tokenomics, audits, PR, or community growth.',
   ])
   const [chatInput, setChatInput] = useState('')
+  const [isAssistantThinking, setIsAssistantThinking] = useState(false)
+
+  useEffect(() => {
+    const handlePopState = () => {
+      setActivePage(pathPages[window.location.pathname] || 'home')
+      setMenuOpen(false)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   const goToPage = (page: Page) => {
     setActivePage(page)
     setMenuOpen(false)
+    window.history.pushState({}, '', pagePaths[page])
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const sendAssistantMessage = (event: FormEvent) => {
+  const answerAssistantQuestion = async (question: string) => {
+    setChatMessages((messages) => [...messages, question])
+    setIsAssistantThinking(true)
+
+    try {
+      const answer = await askAiAssistant(question)
+      setChatMessages((messages) => [...messages, answer])
+    } catch {
+      setChatMessages((messages) => [...messages, getAssistantReply(question)])
+    } finally {
+      setIsAssistantThinking(false)
+    }
+  }
+
+  const sendAssistantMessage = async (event: FormEvent) => {
     event.preventDefault()
     if (!chatInput.trim()) return
 
-    setChatMessages((messages) => [
-      ...messages,
-      chatInput.trim(),
-      getAssistantReply(chatInput.trim()),
-    ])
+    await answerAssistantQuestion(chatInput.trim())
     setChatInput('')
   }
 
-  const subscribeNewsletter = (event: FormEvent<HTMLFormElement>) => {
+  const subscribeNewsletter = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     const formData = new FormData(event.currentTarget)
     const email = String(formData.get('newsletter') || '')
 
     if (!email.includes('@')) {
+      setNewsletterState('error')
       setNewsletterMessage('Please enter a valid email address.')
       return
     }
 
-    setNewsletterMessage('Subscribed. You will receive the next Web3 launch brief.')
-    event.currentTarget.reset()
+    try {
+      setNewsletterState('loading')
+      setNewsletterMessage('Subscribing...')
+      await subscribeToNewsletter(email)
+      setNewsletterState('success')
+      setNewsletterMessage('Subscribed. You will receive the next Web3 launch brief.')
+      event.currentTarget.reset()
+    } catch (error) {
+      setNewsletterState('error')
+      setNewsletterMessage(error instanceof Error ? error.message : 'Could not subscribe right now.')
+    }
+  }
+
+  const handleContactSubmit = async (event: FormEvent<HTMLFormElement>, source: string) => {
+    event.preventDefault()
+    const form = event.currentTarget
+    const formData = new FormData(form)
+    const email = String(formData.get('email') || '')
+
+    if (email && !email.includes('@')) {
+      setContactState('error')
+      setContactMessage('Please enter a valid email address.')
+      return
+    }
+
+    try {
+      setContactState('loading')
+      setContactMessage('Sending...')
+      await submitContactInquiry({
+        name: String(formData.get('name') || ''),
+        email,
+        projectName: String(formData.get('projectName') || ''),
+        targetService: String(formData.get('targetService') || ''),
+        contactHandle: String(formData.get('contactHandle') || ''),
+        message: String(formData.get('message') || ''),
+        source,
+      })
+      setContactState('success')
+      setContactMessage('Message sent. JosehWeb3 will get back to you soon.')
+      form.reset()
+    } catch (error) {
+      setContactState('error')
+      setContactMessage(error instanceof Error ? error.message : 'Could not send message right now.')
+    }
   }
 
   return (
@@ -380,7 +477,7 @@ function App() {
         </button>
 
         <button
-          className="menu-toggle"
+          className={`menu-toggle ${menuOpen ? 'open' : ''}`}
           type="button"
           aria-label="Toggle navigation menu"
           aria-expanded={menuOpen}
@@ -408,18 +505,41 @@ function App() {
         </div>
       </nav>
 
-      {activePage === 'home' && <HomePage goToPage={goToPage} />}
+      {activePage === 'home' && (
+        <HomePage
+          contactMessage={contactMessage}
+          contactState={contactState}
+          goToPage={goToPage}
+          onContactSubmit={handleContactSubmit}
+        />
+      )}
       {activePage === 'services' && <ServicesPage goToPage={goToPage} />}
       {activePage === 'about' && <AboutPage goToPage={goToPage} />}
       {activePage === 'partners' && <PartnersPage />}
       {activePage === 'team' && <TeamPage />}
       {activePage === 'pitch-deck' && <PitchDeckPage goToPage={goToPage} />}
-      {activePage === 'contact' && <ContactPage />}
-      {activePage === 'get-started' && <GetStartedPage goToPage={goToPage} />}
+      {activePage === 'contact' && (
+        <ContactPage
+          contactMessage={contactMessage}
+          contactState={contactState}
+          onContactSubmit={handleContactSubmit}
+        />
+      )}
+      {activePage === 'get-started' && (
+        <GetStartedPage
+          contactMessage={contactMessage}
+          contactState={contactState}
+          goToPage={goToPage}
+          onContactSubmit={handleContactSubmit}
+        />
+      )}
+      {activePage === 'privacy' && <PrivacyPage />}
+      {activePage === 'terms' && <TermsPage />}
 
       <Footer
         goToPage={goToPage}
         newsletterMessage={newsletterMessage}
+        newsletterState={newsletterState}
         onNewsletterSubmit={subscribeNewsletter}
       />
 
@@ -452,17 +572,14 @@ function App() {
                 key={prompt}
                 type="button"
                 onClick={() => {
-                  setChatMessages((messages) => [
-                    ...messages,
-                    prompt,
-                    getAssistantReply(prompt),
-                  ])
+                  void answerAssistantQuestion(prompt)
                 }}
               >
                 {prompt}
               </button>
             ))}
           </div>
+          {isAssistantThinking && <p className="assistant-thinking">Joseh AI is thinking...</p>}
           <form className="assistant-form" onSubmit={sendAssistantMessage}>
             <input
               value={chatInput}
@@ -477,7 +594,17 @@ function App() {
   )
 }
 
-function HomePage({ goToPage }: { goToPage: (page: Page) => void }) {
+function HomePage({
+  contactMessage,
+  contactState,
+  goToPage,
+  onContactSubmit,
+}: {
+  contactMessage: string
+  contactState: 'idle' | 'loading' | 'success' | 'error'
+  goToPage: (page: Page) => void
+  onContactSubmit: (event: FormEvent<HTMLFormElement>, source: string) => void
+}) {
   return (
     <>
       <section className="hero">
@@ -495,7 +622,7 @@ function HomePage({ goToPage }: { goToPage: (page: Page) => void }) {
             <a className="btn primary" href="https://calendly.com/" target="_blank" rel="noreferrer">
               Schedule Free Call
             </a>
-            <a className="btn secondary" href="https://t.me/" target="_blank" rel="noreferrer">
+            <a className="btn secondary" href={socialLinks.telegram} target="_blank" rel="noreferrer">
               Chat on Telegram
             </a>
           </div>
@@ -641,7 +768,11 @@ function HomePage({ goToPage }: { goToPage: (page: Page) => void }) {
       </section>
 
       <HomeFaq goToPage={goToPage} />
-      <HomeContact />
+      <HomeContact
+        contactMessage={contactMessage}
+        contactState={contactState}
+        onContactSubmit={onContactSubmit}
+      />
     </>
   )
 }
@@ -850,7 +981,15 @@ function PitchDeckPage({ goToPage }: { goToPage: (page: Page) => void }) {
   )
 }
 
-function ContactPage() {
+function ContactPage({
+  contactMessage,
+  contactState,
+  onContactSubmit,
+}: {
+  contactMessage: string
+  contactState: 'idle' | 'loading' | 'success' | 'error'
+  onContactSubmit: (event: FormEvent<HTMLFormElement>, source: string) => void
+}) {
   return (
     <>
       <PageHero
@@ -873,50 +1012,51 @@ function ContactPage() {
             <strong>Mon - Fri, 9AM - 6PM UTC</strong>
           </article>
           <div className="follow-grid">
-            <a href="https://twitter.com/" target="_blank" rel="noreferrer">
+            <a href={socialLinks.twitter} target="_blank" rel="noreferrer">
               <SocialIcon name="Twitter" />
               Twitter / X
             </a>
-            <a href="https://linkedin.com/" target="_blank" rel="noreferrer">
+            <a href={socialLinks.linkedin} target="_blank" rel="noreferrer">
               <SocialIcon name="LinkedIn" />
               LinkedIn
             </a>
-            <a href="https://t.me/" target="_blank" rel="noreferrer">
+            <a href={socialLinks.telegram} target="_blank" rel="noreferrer">
               <SocialIcon name="Telegram" />
               Telegram
             </a>
-            <a href="https://wa.me/" target="_blank" rel="noreferrer">
+            <a href={socialLinks.whatsapp} target="_blank" rel="noreferrer">
               <SocialIcon name="WhatsApp" />
               WhatsApp
             </a>
-            <a href="https://facebook.com/" target="_blank" rel="noreferrer">
+            <a href={socialLinks.facebook} target="_blank" rel="noreferrer">
               <SocialIcon name="Facebook" />
               Facebook
             </a>
           </div>
         </div>
 
-        <form className="contact-form">
+        <form className="contact-form" onSubmit={(event) => onContactSubmit(event, 'contact_page')}>
           <h3>Send us a message</h3>
           <label>
             Your Name
-            <input type="text" placeholder="Your name" />
+            <input name="name" type="text" placeholder="Your name" />
           </label>
           <label>
             Email Address
-            <input type="email" placeholder="you@company.com" />
+            <input name="email" type="email" placeholder="you@company.com" />
           </label>
           <label>
             Project Name
-            <input type="text" placeholder="Token or company name" />
+            <input name="projectName" type="text" placeholder="Token or company name" />
           </label>
           <label>
             Message
-            <textarea placeholder="Tell us about your token, exchange target, timeline, or campaign." />
+            <textarea name="message" placeholder="Tell us about your token, exchange target, timeline, or campaign." />
           </label>
-          <button className="btn primary" type="button">
+          <button className="btn primary" type="submit">
             Send Message
           </button>
+          {contactMessage && <p className={`form-status ${contactState}`}>{contactMessage}</p>}
           <div className="newsletter">
             <input type="email" placeholder="Newsletter email" aria-label="Newsletter email" />
             <button type="button">Subscribe</button>
@@ -1030,7 +1170,17 @@ function FaqAccordion() {
   )
 }
 
-function GetStartedPage({ goToPage }: { goToPage: (page: Page) => void }) {
+function GetStartedPage({
+  contactMessage,
+  contactState,
+  goToPage,
+  onContactSubmit,
+}: {
+  contactMessage: string
+  contactState: 'idle' | 'loading' | 'success' | 'error'
+  goToPage: (page: Page) => void
+  onContactSubmit: (event: FormEvent<HTMLFormElement>, source: string) => void
+}) {
   return (
     <>
       <PageHero
@@ -1062,32 +1212,33 @@ function GetStartedPage({ goToPage }: { goToPage: (page: Page) => void }) {
             <a className="btn primary" href="https://calendly.com/" target="_blank" rel="noreferrer">
               Open Calendly
             </a>
-            <a className="btn secondary" href="https://wa.me/" target="_blank" rel="noreferrer">
+            <a className="btn secondary" href={socialLinks.whatsapp} target="_blank" rel="noreferrer">
               Chat on WhatsApp
             </a>
           </div>
         </div>
-        <form className="contact-form">
+        <form className="contact-form" onSubmit={(event) => onContactSubmit(event, 'get_started_page')}>
           <h3>Tell us about your project</h3>
           <label>
             Project Name
-            <input type="text" placeholder="Token or company name" />
+            <input name="projectName" type="text" placeholder="Token or company name" />
           </label>
           <label>
             Target Service
-            <input type="text" placeholder="Exchange listing, audit, PR..." />
+            <input name="targetService" type="text" placeholder="Exchange listing, audit, PR..." />
           </label>
           <label>
             Telegram or WhatsApp
-            <input type="text" placeholder="@username or phone number" />
+            <input name="contactHandle" type="text" placeholder="@username or phone number" />
           </label>
           <label>
             Timeline
-            <textarea placeholder="When do you want to launch or list?" />
+            <textarea name="message" placeholder="When do you want to launch or list?" />
           </label>
-          <button className="btn primary" type="button">
+          <button className="btn primary" type="submit">
             Submit Project
           </button>
+          {contactMessage && <p className={`form-status ${contactState}`}>{contactMessage}</p>}
           <button className="text-link" type="button" onClick={() => goToPage('pitch-deck')}>
             View pitch deck first
           </button>
@@ -1112,7 +1263,15 @@ function GetStartedPage({ goToPage }: { goToPage: (page: Page) => void }) {
   )
 }
 
-function HomeContact() {
+function HomeContact({
+  contactMessage,
+  contactState,
+  onContactSubmit,
+}: {
+  contactMessage: string
+  contactState: 'idle' | 'loading' | 'success' | 'error'
+  onContactSubmit: (event: FormEvent<HTMLFormElement>, source: string) => void
+}) {
   return (
     <section className="section contact home-contact">
       <div className="contact-info">
@@ -1135,40 +1294,113 @@ function HomeContact() {
           <strong>Mon - Fri, 9AM - 6PM UTC</strong>
         </article>
       </div>
-      <form className="contact-form">
+      <form className="contact-form" onSubmit={(event) => onContactSubmit(event, 'home_contact')}>
         <h3>Send us a message</h3>
         <p>Fill in the details below and we will get back to you within 24 hours.</p>
         <label>
           Your Name
-          <input type="text" placeholder="Your name" />
+          <input name="name" type="text" placeholder="Your name" />
         </label>
         <label>
           Email Address
-          <input type="email" placeholder="you@company.com" />
+          <input name="email" type="email" placeholder="you@company.com" />
         </label>
         <label>
           Project Name
-          <input type="text" placeholder="Token or company name" />
+          <input name="projectName" type="text" placeholder="Token or company name" />
         </label>
         <label>
           Message
-          <textarea placeholder="Tell us about your token, target exchanges, or campaign." />
+          <textarea name="message" placeholder="Tell us about your token, target exchanges, or campaign." />
         </label>
-        <button className="btn primary" type="button">
+        <button className="btn primary" type="submit">
           Send Message
         </button>
+        {contactMessage && <p className={`form-status ${contactState}`}>{contactMessage}</p>}
       </form>
     </section>
+  )
+}
+
+function PrivacyPage() {
+  return (
+    <>
+      <PageHero
+        label="Privacy"
+        title="Privacy Policy"
+        text="How JosehWeb3 handles contact details, newsletter subscriptions, and project inquiry information."
+      />
+      <section className="section legal-page">
+        <article>
+          <h3>Information We Collect</h3>
+          <p>
+            We collect the details you submit through forms, including name, email, project name,
+            contact handle, service interest, and message content.
+          </p>
+        </article>
+        <article>
+          <h3>How We Use It</h3>
+          <p>
+            We use submitted information to respond to inquiries, prepare consultation calls, send
+            newsletter updates, and improve our Web3 advisory services.
+          </p>
+        </article>
+        <article>
+          <h3>Data Storage</h3>
+          <p>
+            Form submissions may be stored in Supabase or another secure backend provider. Do not
+            submit private keys, seed phrases, or sensitive wallet credentials.
+          </p>
+        </article>
+      </section>
+    </>
+  )
+}
+
+function TermsPage() {
+  return (
+    <>
+      <PageHero
+        label="Terms"
+        title="Terms of Service"
+        text="Basic terms for using the JosehWeb3 website and requesting advisory support."
+      />
+      <section className="section legal-page">
+        <article>
+          <h3>No Financial Advice</h3>
+          <p>
+            JosehWeb3 provides marketing, listing-readiness, tokenomics, and advisory support. Our
+            website content is not financial, legal, or investment advice.
+          </p>
+        </article>
+        <article>
+          <h3>Exchange Outcomes</h3>
+          <p>
+            Exchange approvals are controlled by each exchange. We improve readiness and
+            communication, but final listing decisions remain with third-party platforms.
+          </p>
+        </article>
+        <article>
+          <h3>Responsible Use</h3>
+          <p>
+            Users agree not to submit unlawful, misleading, or sensitive credential information
+            through this website.
+          </p>
+        </article>
+      </section>
+    </>
   )
 }
 
 function Footer({
   goToPage,
   newsletterMessage,
+  newsletterState,
   onNewsletterSubmit,
 }: {
   goToPage: (page: Page) => void
   newsletterMessage: string
+  newsletterState: 'idle' | 'loading' | 'success' | 'error'
   onNewsletterSubmit: (event: FormEvent<HTMLFormElement>) => void
 }) {
   return (
@@ -1186,19 +1418,19 @@ function Footer({
             preparing serious market launches.
           </p>
           <div className="footer-socials">
-            <a href="https://twitter.com/" target="_blank" rel="noreferrer">
+            <a href={socialLinks.twitter} target="_blank" rel="noreferrer">
               <SocialIcon name="Twitter" />
               Twitter
             </a>
-            <a href="https://linkedin.com/" target="_blank" rel="noreferrer">
+            <a href={socialLinks.linkedin} target="_blank" rel="noreferrer">
               <SocialIcon name="LinkedIn" />
               LinkedIn
             </a>
-            <a href="https://t.me/" target="_blank" rel="noreferrer">
+            <a href={socialLinks.telegram} target="_blank" rel="noreferrer">
               <SocialIcon name="Telegram" />
               Telegram
             </a>
-            <a href="https://wa.me/" target="_blank" rel="noreferrer">
+            <a href={socialLinks.whatsapp} target="_blank" rel="noreferrer">
               <SocialIcon name="WhatsApp" />
               WhatsApp
             </a>
@@ -1229,6 +1461,12 @@ function Footer({
             <button type="button" onClick={() => goToPage('get-started')}>
               Schedule Free Call
             </button>
+            <button type="button" onClick={() => goToPage('privacy')}>
+              Privacy Policy
+            </button>
+            <button type="button" onClick={() => goToPage('terms')}>
+              Terms
+            </button>
           </div>
         </div>
       </div>
@@ -1242,7 +1480,9 @@ function Footer({
           <input name="newsletter" type="email" placeholder="Newsletter email" aria-label="Newsletter email" />
           <button type="submit">Subscribe</button>
         </form>
-        {newsletterMessage && <p className="newsletter-status">{newsletterMessage}</p>}
+        {newsletterMessage && (
+          <p className={`newsletter-status ${newsletterState}`}>{newsletterMessage}</p>
+        )}
       </div>
 
       <div className="footer-bottom">

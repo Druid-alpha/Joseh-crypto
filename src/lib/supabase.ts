@@ -1,0 +1,54 @@
+type SupabaseRecord = Record<string, string | null>
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+
+const isConfigured = Boolean(supabaseUrl && supabaseAnonKey)
+
+async function insertRecord(table: string, payload: SupabaseRecord) {
+  if (!isConfigured) {
+    throw new Error('Supabase is not configured yet. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.')
+  }
+
+  const response = await fetch(`${supabaseUrl}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: {
+      apikey: supabaseAnonKey!,
+      Authorization: `Bearer ${supabaseAnonKey}`,
+      'Content-Type': 'application/json',
+      Prefer: 'return=minimal',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Could not save ${table}. Please try again.`)
+  }
+}
+
+export async function subscribeToNewsletter(email: string) {
+  await insertRecord('newsletter_subscribers', {
+    email,
+    source: 'website_footer',
+  })
+}
+
+export async function submitContactInquiry(payload: {
+  name?: string | null
+  email?: string | null
+  projectName?: string | null
+  targetService?: string | null
+  contactHandle?: string | null
+  message?: string | null
+  source: string
+}) {
+  await insertRecord('contact_inquiries', {
+    name: payload.name || null,
+    email: payload.email || null,
+    project_name: payload.projectName || null,
+    target_service: payload.targetService || null,
+    contact_handle: payload.contactHandle || null,
+    message: payload.message || null,
+    source: payload.source,
+  })
+}
