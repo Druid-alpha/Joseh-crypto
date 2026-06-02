@@ -1,6 +1,6 @@
 type SupabaseRecord = Record<string, string | null>
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.replace(/\/$/, '')
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
 const isConfigured = Boolean(supabaseUrl && supabaseAnonKey)
@@ -21,8 +21,21 @@ async function insertRecord(table: string, payload: SupabaseRecord) {
     body: JSON.stringify(payload),
   })
 
+  if (response.status === 409 && table === 'newsletter_subscribers') {
+    throw new Error('This email is already subscribed.')
+  }
+
   if (!response.ok) {
-    throw new Error(`Could not save ${table}. Please try again.`)
+    let message = `Could not save ${table}. Please try again.`
+
+    try {
+      const error = (await response.json()) as { message?: string; details?: string; hint?: string }
+      message = error.message || error.details || error.hint || message
+    } catch {
+      // Keep the readable fallback above if Supabase returns a non-JSON error.
+    }
+
+    throw new Error(message)
   }
 }
 

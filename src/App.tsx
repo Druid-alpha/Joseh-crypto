@@ -411,7 +411,8 @@ function App() {
 
   const subscribeNewsletter = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const formData = new FormData(event.currentTarget)
+    const form = event.currentTarget
+    const formData = new FormData(form)
     const email = String(formData.get('newsletter') || '')
 
     if (!email.includes('@')) {
@@ -426,7 +427,7 @@ function App() {
       await subscribeToNewsletter(email)
       setNewsletterState('success')
       setNewsletterMessage('Subscribed. You will receive the next Web3 launch brief.')
-      event.currentTarget.reset()
+      form.reset()
     } catch (error) {
       setNewsletterState('error')
       setNewsletterMessage(error instanceof Error ? error.message : 'Could not subscribe right now.')
