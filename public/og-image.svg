@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="JosehWeb3 Solutions">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop stop-color="#050706"/>
+      <stop offset="0.56" stop-color="#0a1110"/>
+      <stop offset="1" stop-color="#111009"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0" x2="1" y1="0" y2="1">
+      <stop stop-color="#31e6b5"/>
+      <stop offset="0.58" stop-color="#f5c65b"/>
+      <stop offset="1" stop-color="#ff9f43"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="15%" r="70%">
+      <stop stop-color="#31e6b5" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#31e6b5" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <g opacity="0.16" stroke="#f4fbf8">
+    <path d="M0 120h1200M0 240h1200M0 360h1200M0 480h1200"/>
+    <path d="M120 0v630M240 0v630M360 0v630M480 0v630M600 0v630M720 0v630M840 0v630M960 0v630M1080 0v630"/>
+  </g>
+  <rect x="86" y="76" width="132" height="132" rx="34" fill="url(#brand)"/>
+  <path d="M124 116h32v46c0 16-11 27-27 27-9 0-16-3-22-8l11-19c3 4 7 6 11 6 5 0 8-3 8-11v-22h-13v-19Zm50 0h27l-22 28c14 3 25 12 25 25 0 17-15 28-34 28-14 0-25-5-33-14l14-17c5 6 11 9 19 9 7 0 11-3 11-8 0-6-6-8-15-8h-11v-14l17-20h-19v-9Z" fill="#06110f"/>
+  <text x="86" y="308" fill="#f4fbf8" font-family="Inter, Arial, sans-serif" font-size="86" font-weight="900">JosehWeb3</text>
+  <text x="86" y="404" fill="#31e6b5" font-family="Inter, Arial, sans-serif" font-size="86" font-weight="900">Solutions</text>
+  <text x="90" y="472" fill="#aebfbd" font-family="Inter, Arial, sans-serif" font-size="30">Exchange listing, tokenomics, PR, audits, and Web3 growth advisory.</text>
+  <g transform="translate(86 530)">
+    <rect width="244" height="54" rx="27" fill="#31e6b5"/>
+    <text x="122" y="36" text-anchor="middle" fill="#06110f" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="800">Schedule Free Call</text>
+  </g>
+</svg>

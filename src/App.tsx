@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import './App.css'
 import { askAiAssistant } from './lib/ai'
 import { submitContactInquiry, subscribeToNewsletter } from './lib/supabase'
@@ -41,6 +42,9 @@ const pagePaths: Record<Page, string> = {
 const pathPages = Object.fromEntries(
   Object.entries(pagePaths).map(([page, path]) => [path, page]),
 ) as Record<string, Page>
+
+pathPages['/service'] = 'services'
+pathPages['/pitch'] = 'pitch-deck'
 
 const socialLinks = {
   twitter: 'https://twitter.com/josehweb3',
@@ -194,32 +198,6 @@ const assistantPrompts = [
   'How much PR do we need before listing?',
 ]
 
-function getAssistantReply(question: string) {
-  const lowerQuestion = question.toLowerCase()
-
-  if (lowerQuestion.includes('cex') || lowerQuestion.includes('list')) {
-    return 'For a CEX listing, start with legal/project documents, tokenomics, audit status, community traction, liquidity plan, market-maker readiness, and a clean pitch deck. JosehWeb3 can map the right exchange tier and prepare the listing route.'
-  }
-
-  if (lowerQuestion.includes('tokenomic')) {
-    return 'A tokenomics review should cover supply, vesting, emissions, utility, liquidity allocation, treasury, team unlocks, and market sustainability. We can help turn that into an exchange-ready structure.'
-  }
-
-  if (lowerQuestion.includes('audit') || lowerQuestion.includes('security')) {
-    return 'Exchanges usually want evidence that the token contract is secure, verified, and professionally audited. We can coordinate audit readiness, technical documentation, and risk cleanup before applications.'
-  }
-
-  if (lowerQuestion.includes('pr') || lowerQuestion.includes('marketing')) {
-    return 'PR before listing should build credibility, not just noise. A good campaign includes narrative, media angles, KOLs, community announcements, social proof, and post-listing momentum.'
-  }
-
-  if (lowerQuestion.includes('exchange') || lowerQuestion.includes('check')) {
-    return 'Exchanges first check project legitimacy, team transparency, token utility, liquidity, market demand, community quality, documentation, compliance posture, and technical safety.'
-  }
-
-  return 'Good question. The best next step is a quick readiness review covering your token, documentation, community, target exchanges, audit state, and timeline so JosehWeb3 can recommend the right launch path.'
-}
-
 const clientStories = [
   {
     quote:
@@ -275,6 +253,8 @@ function ExchangeLogo({ name }: { name: string }) {
         <img
           src={logo}
           alt={`${name} logo`}
+          loading="lazy"
+          decoding="async"
           onError={() => setFailed(true)}
         />
       </span>
@@ -357,8 +337,10 @@ function SocialIcon({ name }: { name: string }) {
 }
 
 function App() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [activePage, setActivePage] = useState<Page>(() => pathPages[window.location.pathname] || 'home')
+  const activePage = pathPages[location.pathname] || 'home'
   const [assistantOpen, setAssistantOpen] = useState(false)
   const [newsletterMessage, setNewsletterMessage] = useState('')
   const [newsletterState, setNewsletterState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
@@ -370,20 +352,9 @@ function App() {
   const [chatInput, setChatInput] = useState('')
   const [isAssistantThinking, setIsAssistantThinking] = useState(false)
 
-  useEffect(() => {
-    const handlePopState = () => {
-      setActivePage(pathPages[window.location.pathname] || 'home')
-      setMenuOpen(false)
-    }
-
-    window.addEventListener('popstate', handlePopState)
-    return () => window.removeEventListener('popstate', handlePopState)
-  }, [])
-
   const goToPage = (page: Page) => {
-    setActivePage(page)
     setMenuOpen(false)
-    window.history.pushState({}, '', pagePaths[page])
+    navigate(pagePaths[page])
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -394,8 +365,12 @@ function App() {
     try {
       const answer = await askAiAssistant(question)
       setChatMessages((messages) => [...messages, answer])
-    } catch {
-      setChatMessages((messages) => [...messages, getAssistantReply(question)])
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'AI service unavailable'
+      setChatMessages((messages) => [
+        ...messages,
+        `Joseh AI could not reach the live AI service right now. Backend note: ${reason}`,
+      ])
     } finally {
       setIsAssistantThinking(false)
     }
@@ -560,7 +535,7 @@ function App() {
               x
             </button>
           </div>
-          <div className="assistant-messages">
+          <div className="assistant-messages" aria-live="polite">
             {chatMessages.map((message, index) => (
               <p className={index % 2 === 0 ? 'bot' : 'user'} key={`${message}-${index}`}>
                 {message}
@@ -580,7 +555,11 @@ function App() {
               </button>
             ))}
           </div>
-          {isAssistantThinking && <p className="assistant-thinking">Joseh AI is thinking...</p>}
+          {isAssistantThinking && (
+            <p className="assistant-thinking" role="status">
+              Joseh AI is thinking...
+            </p>
+          )}
           <form className="assistant-form" onSubmit={sendAssistantMessage}>
             <input
               value={chatInput}
@@ -1057,11 +1036,11 @@ function ContactPage({
           <button className="btn primary" type="submit">
             Send Message
           </button>
-          {contactMessage && <p className={`form-status ${contactState}`}>{contactMessage}</p>}
-          <div className="newsletter">
-            <input type="email" placeholder="Newsletter email" aria-label="Newsletter email" />
-            <button type="button">Subscribe</button>
-          </div>
+          {contactMessage && (
+            <p className={`form-status ${contactState}`} role="status">
+              {contactMessage}
+            </p>
+          )}
         </form>
       </section>
     </>
@@ -1239,7 +1218,11 @@ function GetStartedPage({
           <button className="btn primary" type="submit">
             Submit Project
           </button>
-          {contactMessage && <p className={`form-status ${contactState}`}>{contactMessage}</p>}
+          {contactMessage && (
+            <p className={`form-status ${contactState}`} role="status">
+              {contactMessage}
+            </p>
+          )}
           <button className="text-link" type="button" onClick={() => goToPage('pitch-deck')}>
             View pitch deck first
           </button>
@@ -1317,7 +1300,11 @@ function HomeContact({
         <button className="btn primary" type="submit">
           Send Message
         </button>
-        {contactMessage && <p className={`form-status ${contactState}`}>{contactMessage}</p>}
+        {contactMessage && (
+          <p className={`form-status ${contactState}`} role="status">
+            {contactMessage}
+          </p>
+        )}
       </form>
     </section>
   )
@@ -1479,10 +1466,14 @@ function Footer({
         </div>
         <form className="newsletter" onSubmit={onNewsletterSubmit}>
           <input name="newsletter" type="email" placeholder="Newsletter email" aria-label="Newsletter email" />
-          <button type="submit">Subscribe</button>
+          <button type="submit" disabled={newsletterState === 'loading'}>
+            {newsletterState === 'loading' ? 'Subscribing...' : 'Subscribe'}
+          </button>
         </form>
         {newsletterMessage && (
-          <p className={`newsletter-status ${newsletterState}`}>{newsletterMessage}</p>
+          <p className={`newsletter-status ${newsletterState}`} role="status">
+            {newsletterMessage}
+          </p>
         )}
       </div>
 
