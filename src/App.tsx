@@ -294,6 +294,39 @@ function AssistantIcon() {
   )
 }
 
+function CeoPortrait() {
+  const [imageFailed, setImageFailed] = useState(false)
+
+  return (
+    <article className="ceo-card">
+      <div className="ceo-photo">
+        {!imageFailed && (
+          <img
+            src="/ceo.jpg"
+            alt="JosehWeb3 CEO"
+            loading="lazy"
+            decoding="async"
+            onError={() => setImageFailed(true)}
+          />
+        )}
+        {imageFailed && (
+          <div className="ceo-photo-fallback" aria-hidden="true">
+            <Logo />
+          </div>
+        )}
+      </div>
+      <div>
+        <span>Founder & CEO</span>
+        <h3>JosehWeb3 Leadership</h3>
+        <p>
+          Leading exchange-readiness strategy, launch planning, and partner coordination for Web3
+          teams preparing serious market entries.
+        </p>
+      </div>
+    </article>
+  )
+}
+
 function SocialIcon({ name }: { name: string }) {
   const key = name.toLowerCase()
 
@@ -806,13 +839,16 @@ function AboutPage({ goToPage }: { goToPage: (page: Page) => void }) {
         text="A premier consultancy specializing in cryptocurrency exchange listings and strategic Web3 growth."
       />
       <section className="section split">
-        <div className="stat-block">
-          {['100+ Successful Listings', '150+ Exchange Partners', '5+ Years Experience', '99% Success Rate'].map((item) => (
-            <div key={item}>
-              <strong>{item.split(' ')[0]}</strong>
-              <span>{item.replace(item.split(' ')[0], '').trim()}</span>
-            </div>
-          ))}
+        <div className="about-media">
+          <CeoPortrait />
+          <div className="stat-block">
+            {['100+ Successful Listings', '150+ Exchange Partners', '5+ Years Experience', '99% Success Rate'].map((item) => (
+              <div key={item}>
+                <strong>{item.split(' ')[0]}</strong>
+                <span>{item.replace(item.split(' ')[0], '').trim()}</span>
+              </div>
+            ))}
+          </div>
         </div>
         <div className="story-panel">
           <h3>Who We Are</h3>
