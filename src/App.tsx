@@ -805,7 +805,7 @@ function Ticker() {
 function ServicesPage({ goToPage }: { goToPage: (page: Page) => void }) {
   return (
     <>
-      <PageHero label="What We Do" title="Our Services" text="A full Web3 growth stack for listing-ready tokens, serious founders, and post-launch communities." />
+      <PageHero title="Our Services" />
       <section className="section">
         <div className="service-grid">
           {services.map((service, index) => (
@@ -834,9 +834,7 @@ function AboutPage({ goToPage }: { goToPage: (page: Page) => void }) {
   return (
     <>
       <PageHero
-        label="Our Story"
         title="About JosehWeb3 Solutions"
-        text="A premier consultancy specializing in cryptocurrency exchange listings and strategic Web3 growth."
       />
       <section className="section split">
         <div className="about-media">
@@ -889,9 +887,7 @@ function PartnersPage() {
   return (
     <>
       <PageHero
-        label="Trusted Network"
         title="Trusted Exchange Partners"
-        text="Direct listing preparation for leading crypto exchanges, market data platforms, and launch ecosystems."
       />
       <ExchangeNetwork />
     </>
@@ -902,9 +898,7 @@ function TeamPage() {
   return (
     <>
       <PageHero
-        label="Client Success Stories"
         title="Trusted by ambitious Web3 teams"
-        text="A focused operator team for listing strategy, launch execution, community growth, and technical readiness."
       />
       <section className="section">
         <div className="founder-stats team-stats">
@@ -953,9 +947,7 @@ function PitchDeckPage({ goToPage }: { goToPage: (page: Page) => void }) {
   return (
     <>
       <PageHero
-        label="Pitch Deck"
-        title="Listing strategy, tokenomics, and launch execution in one deck."
-        text="Use this page as the project-facing overview for founders, partners, investors, and exchange conversations."
+        title="Listing strategy, tokenomics, and launch execution."
       />
       <section className="section">
         <div className="deck-showcase">
@@ -1009,9 +1001,7 @@ function ContactPage({
   return (
     <>
       <PageHero
-        label="Contact"
         title="Get in touch"
-        text="Ready to launch your token on top-tier exchanges? Reach out and we will craft a custom listing strategy."
       />
       <section className="section contact">
         <div className="contact-info">
@@ -1200,9 +1190,7 @@ function GetStartedPage({
   return (
     <>
       <PageHero
-        label="Schedule Free Consultation"
         title="Ready to list your token?"
-        text="Book a no-commitment strategy call and get a custom roadmap for exchange listings, PR, token audit, and community growth."
       />
       <section className="section get-started-grid">
         <div className="booking-card">
@@ -1350,9 +1338,7 @@ function PrivacyPage() {
   return (
     <>
       <PageHero
-        label="Privacy"
         title="Privacy Policy"
-        text="How JosehWeb3 handles contact details, newsletter subscriptions, and project inquiry information."
       />
       <section className="section legal-page">
         <article>
@@ -1385,9 +1371,7 @@ function TermsPage() {
   return (
     <>
       <PageHero
-        label="Terms"
         title="Terms of Service"
-        text="Basic terms for using the JosehWeb3 website and requesting advisory support."
       />
       <section className="section legal-page">
         <article>
@@ -1461,37 +1445,12 @@ function Footer({
           </div>
         </div>
 
-        <div className="footer-links">
-          <div>
-            <h3>Explore</h3>
-            {navItems.map((item) => (
-              <button key={item.page} type="button" onClick={() => goToPage(item.page)}>
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <div>
-            <h3>Services</h3>
-            {services.slice(0, 5).map((service) => (
-              <button key={service.title} type="button" onClick={() => goToPage('services')}>
-                {service.title}
-              </button>
-            ))}
-          </div>
-          <div>
-            <h3>Contact</h3>
-            <span>hello@josehweb3.com</span>
-            <span>Mon - Fri, 9AM - 6PM UTC</span>
-            <button type="button" onClick={() => goToPage('get-started')}>
-              Schedule Free Call
-            </button>
-            <button type="button" onClick={() => goToPage('privacy')}>
-              Privacy Policy
-            </button>
-            <button type="button" onClick={() => goToPage('terms')}>
-              Terms
-            </button>
-          </div>
+        <div className="footer-contact">
+          <span>hello@josehweb3.com</span>
+          <span>Mon - Fri, 9AM - 6PM UTC</span>
+          <button type="button" onClick={() => goToPage('get-started')}>
+            Schedule Free Call
+          </button>
         </div>
       </div>
 
@@ -1521,12 +1480,12 @@ function Footer({
   )
 }
 
-function PageHero({ label, title, text }: { label: string; title: string; text: string }) {
+function PageHero({ label, title, text }: { label?: string; title: string; text?: string }) {
   return (
     <section className="page-hero centered">
-      <p className="eyebrow">{label}</p>
+      {label && <p className="eyebrow">{label}</p>}
       <h1>{title}</h1>
-      <p>{text}</p>
+      {text && <p>{text}</p>}
     </section>
   )
 }
